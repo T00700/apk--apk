@@ -6,8 +6,8 @@ package zip
 
 import (
 	"bytes"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
@@ -259,7 +259,7 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	if err != nil {
 		t.Fatal("opening:", err)
 	}
-	b, err := ioutil.ReadAll(rc)
+	b, err := io.ReadAll(rc)
 	if err != nil {
 		t.Fatal("reading:", err)
 	}
@@ -270,6 +270,11 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	if !bytes.Equal(b, wt.Data) {
 		t.Errorf("File contents %q, want %q", b, wt.Data)
 	}
+	iLen := len(wt.Data)
+	if iLen > 100 {
+		iLen = 100
+	}
+	fmt.Printf("name:%s\nval:%s", wt.Name, wt.Data[:iLen])
 }
 
 func BenchmarkCompressedZipGarbage(b *testing.B) {

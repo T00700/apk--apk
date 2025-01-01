@@ -400,7 +400,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	// Don't bother uncompressing: too big.
 	if ft.Content == nil && ft.File == "" && ft.Size > 0 {
 		if size != ft.Size {
-			t.Errorf("%v: uncompressed size %#x, want %#x", size, ft.Size)
+			t.Errorf("size not same: uncompressed size %#x, want %#x", size, ft.Size)
 		}
 		r.Close()
 		return
@@ -616,7 +616,6 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //
 // It's here in hex for the same reason as rZipBytes above: to avoid
 // problems with on-disk virus scanners or other zip processors.
-//
 func biggestZipBytes() []byte {
 	s := `
 0000000 50 4b 03 04 14 00 08 00 08 00 00 00 00 00 00 00
