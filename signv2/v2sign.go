@@ -12,11 +12,6 @@ import (
 	"log"
 )
 
-/* This file implements the Android APK signing scheme v2. See https://source.android.com/security/apksigning/v2.html */
-
-/*
- * Struct hierarchy corresponding to the byte structure specified in the URL above.
- */
 type Digest struct {
 	AlgorithmID uint32
 	Digest      []byte
@@ -45,14 +40,10 @@ type Signer struct {
 	PublicKey  []byte
 }
 
-// V2Block is a logical representation of the Android v2 signing scheme block. It can marshal to or
-// unmarshal from a []byte.
 type V2Block struct {
 	Signers []*Signer
 }
 
-// ParseV2Block parses its input as an Android v2 signing scheme block. It returns a non-nil error
-// if the input does not follow that specification.
 func ParseV2Block(block []byte) (*V2Block, error) {
 	var size32 uint32
 
@@ -283,10 +274,8 @@ func ParseSigner(signer []byte) (*Signer, error) {
 	return &Signer{sds, ss, publicKey}, nil
 }
 
-// Verify returns a non-nil error if the Android APK v2 signing scheme represented by `v2` fails to
-// validate, per the spec.
-func (v2 *V2Block) Verify(z *Zip) error {
-	// Zip constructor handles these 3 requirements from the Spec:
+func (v2 *V2Block) Verify(z *ApkSign) error {
+	// ApkSign constructor handles these 3 requirements from the Spec:
 	// "Two size fields of APK Signing Block contain the same value."
 	// "ZIP Central Directory is immediately followed by ZIP End of Central Directory record."
 	// "ZIP End of Central Directory is not followed by more data."
@@ -380,10 +369,10 @@ func (v2 *V2Block) Verify(z *Zip) error {
 		// points to the offset of the ASv2 block. This is because as the ASv2 block changes in length,
 		// it changes the CD offset. Since the ASv2 block is added after the fact and a changing EOCD
 		// would alter the hash, the CD is pointed to the ASv2 before being sent to be hashed.
-		// Essentially, this hashes the "pristine" Zip, as it would be if the ASv2 block didn't exist.
+		// Essentially, this hashes the "pristine" ApkSign, as it would be if the ASv2 block didn't exist.
 		//
 		// Note that this is a RAM-only operation for signing purposes; on disk, this would be an invalid
-		// Zip file.
+		// ApkSign file.
 		revisedEOCD := make([]byte, z.size-int64(z.eocdOffset))
 		copy(revisedEOCD, z.raw[z.eocdOffset:])
 		binary.LittleEndian.PutUint32(revisedEOCD[16:20], uint32(endOfFileSection))
@@ -410,10 +399,7 @@ func (v2 *V2Block) Verify(z *Zip) error {
 	return nil
 }
 
-// Sign generates an Android v2 signature block from `v2` and then injects that block into the
-// indicated Zip instance. On success, it returns the bytes of the resulting signed Zip file, and a
-// nil error. On failure, it returns a non-nil error.
-func (v2 *V2Block) Sign(z *Zip, keys []*SigningCert) ([]byte, error) {
+func (v2 *V2Block) Sign(z *ApkSign, keys []*SigningCert) ([]byte, error) {
 	v2.Signers = make([]*Signer, 0)
 
 	// the ASv2 scheme spec does not actually forbid having multiple 'signer' blocks with the same
@@ -540,13 +526,9 @@ func (v2 *V2Block) Sign(z *Zip, keys []*SigningCert) ([]byte, error) {
 		return nil, er
 	}
 
-	// now we have the final bytes, tell the Zip to inject them into its .zip file at the appropriate location
+	// now we have the final bytes, tell the ApkSign to inject them into its .zip file at the appropriate location
 	return z.InjectBeforeCD(final), nil
 }
-
-/*
- * self-explanatory Marshal functions for the various structs
- */
 
 func (s *Signer) Marshal() []byte {
 	if s == nil {

@@ -30,7 +30,6 @@ func main() {
 		return
 	}
 	var err error
-	os.Remove(*outputFile)
 	f, err := os.Create(*outputFile)
 	if err != nil {
 		log.Fatal(err)

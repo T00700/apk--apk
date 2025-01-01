@@ -9,14 +9,14 @@ import (
 	"strings"
 )
 
-// Zip loads and performs operations on ZIP files required for signing Android APKs. It supports the
+// ApkSign loads and performs operations on ZIP files required for signing Android APKs. It supports the
 // "Android Signing Scheme v2" introduced in Nougat.
 //
 // See https://source.android.com/security/apksigning/v2.html
 //
-// As this signing scheme does not rely on any Android-related content in the Zip file itself, it
-// can actually be used to sign arbitrary Zip files; they need not be Android APKs.
-type Zip struct {
+// As this signing scheme does not rely on any Android-related content in the ApkSign file itself, it
+// can actually be used to sign arbitrary ApkSign files; they need not be Android APKs.
+type ApkSign struct {
 	IsAPK      bool
 	IsV2Signed bool
 
@@ -28,17 +28,17 @@ type Zip struct {
 	rawASv2    []byte
 }
 
-// NewZip attempts to parse its input as a Zip file, determining along the way whether the input is
+// NewZip attempts to parse its input as a ApkSign file, determining along the way whether the input is
 // actually an Android APK, and whether it is signed with either the v1 or v2 signing schemes. A
-// non-nil error is returned if the input does not parse as a Zip. The IsAPK, IsV1Signed, and
+// non-nil error is returned if the input does not parse as a ApkSign. The IsAPK, IsV1Signed, and
 // IsV2Signed will be populated once this function returns a nil error; until they, their values are
 // untrustworthy.
 //
 // Note that this function does NOT use the Go standard zip library. As the Android v2 signing scheme is
-// non-standard and involves injecting a non-Zip data-block into the file before the Zip central
+// non-standard and involves injecting a non-ApkSign data-block into the file before the ApkSign central
 // directory, this code does byte parsing of its input to locate the relevant offsets.
-func NewZip(buf []byte) (*Zip, error) {
-	z := &Zip{}
+func NewZip(buf []byte) (*ApkSign, error) {
+	z := &ApkSign{}
 
 	z.size = int64(len(buf))
 	z.raw = make([]byte, z.size)
@@ -46,7 +46,7 @@ func NewZip(buf []byte) (*Zip, error) {
 
 	// now scan for key offsets: Central Directory (CD) table; End Of Central Directory (EOCD) table;
 	// and the Android Signing Scheme v2 block (ASv2). If the file lacks either a CD or EOCD, it
-	// cannot be a Zip at all; if it lacks an ASv2 block it just means it isn't signed under that
+	// cannot be a ApkSign at all; if it lacks an ASv2 block it just means it isn't signed under that
 	// scheme. It could still be v1 signed. Note that we don't do much parsing of either the CD or
 	// EOCD tables -- this isn't a general-purpose zip utility.
 
@@ -143,7 +143,7 @@ func NewZip(buf []byte) (*Zip, error) {
 
 			z.IsV2Signed = z.asv2Offset > 0
 
-			log.Println("Zip.New", "ASv2, CD, EOCD", z.asv2Offset, z.cdOffset, z.eocdOffset)
+			log.Println("ApkSign.New", "ASv2, CD, EOCD", z.asv2Offset, z.cdOffset, z.eocdOffset)
 
 			return z, nil
 		}
@@ -153,7 +153,7 @@ func NewZip(buf []byte) (*Zip, error) {
 	return nil, errors.New("input is not a zip")
 }
 
-func (z *Zip) SignV2(keys []*SigningCert) (*Zip, error) {
+func (apkSign *ApkSign) SignV2(keys []*SigningCert) (*ApkSign, error) {
 	for _, sk := range keys {
 		if err := sk.Resolve(); err != nil {
 			return nil, err
@@ -163,68 +163,68 @@ func (z *Zip) SignV2(keys []*SigningCert) (*Zip, error) {
 	var b []byte
 	var err error
 	v2 := V2Block{}
-	if b, err = v2.Sign(z, keys); err != nil {
+	if b, err = v2.Sign(apkSign, keys); err != nil {
 		return nil, err
 	}
 
 	return NewZip(b)
 }
 
-// VerifyV2 returns a non-nil error if the represented Zip file has a v2 (i.e. Android-specific
+// VerifyV2 returns a non-nil error if the represented ApkSign file has a v2 (i.e. Android-specific
 // whole-file) signature that does not verify. Note that calling this when z.IsV2Signed == false is
 // always an error. VerifyV2 returns nil if the signature validates.
-func (z *Zip) VerifyV2() error {
+func (apkSign *ApkSign) VerifyV2() error {
 	var v2 *V2Block
 	var err error
 
-	if !z.IsV2Signed {
+	if !apkSign.IsV2Signed {
 		return errors.New("v2 verification attempted on non-v2-signed file")
 	}
 
-	v2, err = ParseV2Block(z.rawASv2)
+	v2, err = ParseV2Block(apkSign.rawASv2)
 	if err != nil {
 		return err
 	}
 
-	return v2.Verify(z)
+	return v2.Verify(apkSign)
 }
 
-// InjectBeforeCD modifies the Zip file bytes represented by this instance by injecting the input
-// bytes into the file immediately before the Zip Central Directory block. The End of Central
+// InjectBeforeCD modifies the ApkSign file bytes represented by this instance by injecting the input
+// bytes into the file immediately before the ApkSign Central Directory block. The End of Central
 // Directory block's record of the Central Directory offset is updated accordingly, so that the new
-// Zip file is valid. Note that this is the behavior specified by the Android APK signing scheme v2,
+// ApkSign file is valid. Note that this is the behavior specified by the Android APK signing scheme v2,
 // which is what this function is intended to be used for.
 //
 // The returned slice is backed by a new array. The bytes represented by `z` are not modified, nor
-// is any other state of `z`. If the resulting Zip bytes need to be interacted with, they must be
-// parsed into a new Zip instance.
-func (z *Zip) InjectBeforeCD(data []byte) []byte {
+// is any other state of `z`. If the resulting ApkSign bytes need to be interacted with, they must be
+// parsed into a new ApkSign instance.
+func (apkSign *ApkSign) InjectBeforeCD(data []byte) []byte {
 	// compute how much space we'll need for the new bytes
-	newSize := int64(len(z.raw))
-	endOfFilesSection := z.cdOffset
-	if z.asv2Offset > 0 {
-		endOfFilesSection = z.asv2Offset
-		newSize -= int64(z.cdOffset - z.asv2Offset)
+	newSize := int64(len(apkSign.raw))
+	endOfFilesSection := apkSign.cdOffset
+	if apkSign.asv2Offset > 0 {
+		endOfFilesSection = apkSign.asv2Offset
+		newSize -= int64(apkSign.cdOffset - apkSign.asv2Offset)
 	}
 	newSize += int64(len(data))
 
-	newEocd := make([]byte, z.size-int64(z.eocdOffset))
-	copy(newEocd, z.raw[z.eocdOffset:])
+	newEocd := make([]byte, apkSign.size-int64(apkSign.eocdOffset))
+	copy(newEocd, apkSign.raw[apkSign.eocdOffset:])
 	binary.LittleEndian.PutUint32(newEocd[16:], uint32(endOfFilesSection+uint64(len(data))))
 
 	// allocate & copy in the data
 	ret := make([]byte, newSize)
-	copy(ret[:endOfFilesSection], z.raw[:endOfFilesSection])
+	copy(ret[:endOfFilesSection], apkSign.raw[:endOfFilesSection])
 	copy(ret[endOfFilesSection:endOfFilesSection+uint64(len(data))], data)
-	copy(ret[endOfFilesSection+uint64(len(data)):], z.raw[z.cdOffset:z.eocdOffset])
-	copy(ret[endOfFilesSection+uint64(len(data))+(z.eocdOffset-z.cdOffset):], newEocd)
+	copy(ret[endOfFilesSection+uint64(len(data)):], apkSign.raw[apkSign.cdOffset:apkSign.eocdOffset])
+	copy(ret[endOfFilesSection+uint64(len(data))+(apkSign.eocdOffset-apkSign.cdOffset):], newEocd)
 
 	return ret
 }
 
 // Bytes returns a slice over a new copy of the bytes underlying `z`.
-func (z *Zip) Bytes() []byte {
-	ret := make([]byte, len(z.raw))
-	copy(ret, z.raw)
+func (apkSign *ApkSign) Bytes() []byte {
+	ret := make([]byte, len(apkSign.raw))
+	copy(ret, apkSign.raw)
 	return ret
 }

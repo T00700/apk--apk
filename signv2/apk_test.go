@@ -48,7 +48,7 @@ func saveFile(name string, b []byte) error {
 }
 
 func TestGenerateSignedFile(t *testing.T) {
-	var z *Zip
+	var z *ApkSign
 	var err error
 	var b []byte
 
