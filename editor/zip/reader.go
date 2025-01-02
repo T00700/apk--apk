@@ -183,7 +183,6 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
 	return
 }
 
-// TODO: Document.
 func (z *Reader) AppendOffset() int64 {
 	return z.dirOffset
 }

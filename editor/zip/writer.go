@@ -11,9 +11,8 @@ import (
 	"hash"
 	"hash/crc32"
 	"io"
+	"log"
 )
-
-// TODO(adg): support zip file comments
 
 // Writer implements a zip file writer.
 type Writer struct {
@@ -46,21 +45,25 @@ func (w *Writer) SetOffset(n int64) {
 	w.cw.count = n
 }
 
-func newAppendingWriter(r *Reader, fw io.Writer) *Writer {
+func newAppendingWriter(r *Reader, fw io.Writer, skipManifest bool) *Writer {
 	w := &Writer{
 		cw: &countWriter{
 			w:     bufio.NewWriter(fw),
 			count: r.AppendOffset(),
 		},
-		dir:   make([]*header, len(r.File), len(r.File)*3/2),
+		dir:   make([]*header, 0, len(r.File)*3/2),
 		names: make(map[string]int),
 	}
-	for i, f := range r.File {
-		w.dir[i] = &header{
+	for _, f := range r.File {
+		if skipManifest && f.Name == ANDROIDMANIFEST {
+			continue
+		}
+		h := &header{
 			FileHeader: &f.FileHeader,
 			offset:     uint64(f.headerOffset),
 		}
-		w.names[f.Name] = i
+		w.dir = append(w.dir, h)
+		w.names[f.Name] = len(w.dir) - 1
 	}
 	return w
 }
@@ -286,6 +289,29 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	return fw, nil
 }
 
+func (w *Writer) PaddingHeader(fh *FileHeader) {
+	var alignment = 4
+	var padlen int
+	if fh.CompressedSize64 != fh.UncompressedSize64 {
+		// File is compressed, copy the entry without padding
+		log.Printf("--- %s: len %d (compressed)", fh.Name, fh.UncompressedSize64)
+	} else {
+		// source: https://android.googlesource.com/platform/build.git/+/android-4.2.2_r1/tools/zipalign/ZipAlign.cpp#76
+		newOffset := len(fh.Extra) + 4
+		padlen = (alignment - (newOffset % alignment)) % alignment
+		if padlen > 0 {
+			log.Printf(" --- %s: padding success %d bytes", fh.Name, padlen)
+		} else {
+			log.Printf(" --- %s: need not padding %d bytes", fh.Name, padlen)
+		}
+	}
+	// add padlen number of null bytes to the extra field of the file header
+	// in order to align files on 4 bytes
+	for i := 0; i < padlen; i++ {
+		fh.Extra = append(fh.Extra, '\x00')
+	}
+}
+
 // Copy copies the file f (obtained from a Reader) into w.
 // It copies the compressed form directly.
 func (w *Writer) Copy(f *File) error {
@@ -304,7 +330,7 @@ func (w *Writer) Copy(f *File) error {
 	}
 	fh.Flags |= 0x8 // we will write a data descriptor
 	w.dir = append(w.dir, h)
-
+	//w.PaddingHeader(&fh)
 	if err := writeHeader(w.cw, &fh); err != nil {
 		return err
 	}

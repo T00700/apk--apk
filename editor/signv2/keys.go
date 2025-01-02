@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,16 +17,16 @@ import (
 // SigningKey wraps a private key disk file with functions that know how to parse the key, and sign
 // things with it. Currently only RSA keys and SHA-2/256 and SHA-2/512 digests are supported.
 type SigningKey struct {
-	KeyPath string
-	Type    KeyAlgorithm
-	Hash    HashAlgorithm
-	Key     *rsa.PrivateKey
+	KeyPath  string
+	KeyBytes []byte
+	Type     KeyAlgorithm
+	Hash     HashAlgorithm
+	Key      *rsa.PrivateKey
 }
 
 // Resolve loads the private key from disk and parses it. A non-nil error is returned if the parsing
 // fails for any reason, or if the key type is unsupported.
 func (sk *SigningKey) Resolve() error {
-	var key *rsa.PrivateKey
 	if sk.Type != RSA {
 		// TODO: support EC
 		return errors.New("elliptic curve support not currently implemented")
@@ -43,12 +42,18 @@ func (sk *SigningKey) Resolve() error {
 	if sk.KeyPath == "" && sk.Key != nil {
 		return nil
 	}
-
+	var someBytes []byte
 	// parse private key
-	someBytes, err := safeLoad(sk.KeyPath)
-	if err != nil {
-		return err
+	if sk.KeyPath == "" {
+		someBytes = sk.KeyBytes
+	} else {
+		var err error
+		someBytes, err = safeLoad(sk.KeyPath)
+		if err != nil {
+			return err
+		}
 	}
+
 	block, _ := pem.Decode(someBytes) // require cert to be in first block in file; ignore rest
 	if block == nil {
 		return errors.New("key does not decode as PEM")
@@ -58,7 +63,7 @@ func (sk *SigningKey) Resolve() error {
 		if block.Type != "RSA PRIVATE KEY" && block.Type != "PRIVATE KEY" {
 			return errors.New("type set as RSA but PEM block does not look like a 'PRIVATE KEY'")
 		}
-		key, err = x509.ParsePKCS1PrivateKey(block.Bytes) // assumes ASN1 DER representation of a PKCS1 key
+		key, err := x509.ParsePKCS1PrivateKey(block.Bytes) // assumes ASN1 DER representation of a PKCS1 key
 		if err != nil {
 			log.Println("SigningKey.Resolve", "error parsing PKCS1 private key, retrying with PKCS8", err)
 
@@ -169,27 +174,17 @@ func (sc *SigningCert) Resolve() error {
 
 func safeLoad(path string) ([]byte, error) {
 	var err error
-	/*
-		myPath := ""
-		if myPath, err = filepath.Abs(filepath.Dir(os.Args[0])); err != nil {
-			log.Println("android.safeLoad", "could not locate executable directory", err)
-			return nil, err
-		}
-	*/
+
 	if path, err = filepath.Abs(path); err != nil {
 		log.Println("android.safeLoad", "file '"+path+"' does not resolve")
 		return nil, err
 	}
-	/* This turns out to be spammy and restrictive. Revisit this later.
-	if !strings.HasPrefix(path, myPath) {
-		log.Warn("android.safeLoad", "path '"+path+"' is not under executable pwd '" + myPath + "'")
-	}
-	*/
+
 	if stat, err := os.Stat(path); err != nil || (stat != nil && stat.IsDir()) {
 		log.Println("android.safeLoad", "file '"+path+"' does not stat or is a directory", err)
 		return nil, err
 	}
-	fileBytes, err := ioutil.ReadFile(path)
+	fileBytes, err := os.ReadFile(path)
 	if err != nil {
 		log.Println("android.safeLoad", "file '"+path+"' failed to load", err)
 		return nil, err

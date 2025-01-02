@@ -2,4 +2,6 @@ module apkEditor
 
 go 1.23.1
 
-require github.com/google/zopfli v0.0.0-20210614151705-831773bc28e3
+replace github.com/pzx521521/apk-editor/editor => ./editor
+
+require github.com/pzx521521/apk-editor/editor v0.0.0-00010101000000-000000000000

@@ -37,7 +37,7 @@ type ApkSign struct {
 // Note that this function does NOT use the Go standard zip library. As the Android v2 signing scheme is
 // non-standard and involves injecting a non-ApkSign data-block into the file before the ApkSign central
 // directory, this code does byte parsing of its input to locate the relevant offsets.
-func NewZip(buf []byte) (*ApkSign, error) {
+func NewApkSign(buf []byte) (*ApkSign, error) {
 	z := &ApkSign{}
 
 	z.size = int64(len(buf))
@@ -153,21 +153,14 @@ func NewZip(buf []byte) (*ApkSign, error) {
 	return nil, errors.New("input is not a zip")
 }
 
-func (apkSign *ApkSign) SignV2(keys []*SigningCert) (*ApkSign, error) {
+func (apkSign *ApkSign) SignV2(keys []*SigningCert) ([]byte, error) {
 	for _, sk := range keys {
 		if err := sk.Resolve(); err != nil {
 			return nil, err
 		}
 	}
-
-	var b []byte
-	var err error
 	v2 := V2Block{}
-	if b, err = v2.Sign(apkSign, keys); err != nil {
-		return nil, err
-	}
-
-	return NewZip(b)
+	return v2.Sign(apkSign, keys)
 }
 
 // VerifyV2 returns a non-nil error if the represented ApkSign file has a v2 (i.e. Android-specific

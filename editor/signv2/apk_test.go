@@ -56,7 +56,7 @@ func TestGenerateSignedFile(t *testing.T) {
 		t.Log("error loading file", err)
 		t.FailNow()
 	}
-	if z, err = NewZip(b); err != nil {
+	if z, err = NewApkSign(b); err != nil {
 		t.Log("error parsing zip", err)
 		t.FailNow()
 	}

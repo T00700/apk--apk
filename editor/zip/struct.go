@@ -64,6 +64,9 @@ const (
 	// extra header id's
 	zip64ExtraId = 0x0001 // zip64 Extended Information Extra Field
 )
+const ANDROIDMANIFEST = "AndroidManifest.xml"
+
+type FilterFunc func(f *File)
 
 // FileHeader describes a file within a zip file.
 // See the zip spec for details.

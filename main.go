@@ -1,73 +1,65 @@
-// Copyright 2016 The Go Authors.  All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// Zipmerge merges the content of many zip files,
-// without decompressing and recompressing the data.
-//
-// Usage:
-//
-//	zipmerge [-o out.zip] a.zip b.zip ...
-//
-// By default, zipmerge appends the content of the second and subsequent zip files
-// to the first, rewriting the first in place.
-// If the -o option is given, zipmerge creates a new output file containing
-// the content of all the zip files, without modifying any of the source zip files.
 package main
 
 import (
-	"apkEditor/zip"
-	"flag"
+	"embed"
+	"github.com/pzx521521/apk-editor/editor"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
-var outputFile = flag.String("o", "", "write to `file`")
+//go:embed release/*
+var embedFiles embed.FS
 
 func main() {
-	flag.Parse()
-	if *outputFile == "" {
+	checkErr := func(err error) {
+		if err != nil {
+			log.Fatalf("%v\n", err)
+		}
+	}
+	if len(os.Args) != 2 {
+		app := filepath.Base(os.Args[0])
+		log.Printf("Usage: %s https://www.example.com\n", app)
+		log.Printf("or:    %s <yourpath>/index.html\n", app)
+		log.Printf("or:    %s <your-dir>\n", app)
+		log.Printf("or:    %s <your-dir>/demo.zip\n", app)
 		return
 	}
-	var err error
-	f, err := os.Create(*outputFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	w := zip.NewWriter(f)
-
-	var files = []struct {
-		Name, Body string
-	}{
-		//{"assets/url.txt", "www.baidu.com"},
-		{"assets/index.html", "<h1>Hello World Local Html</h1>"},
-	}
-	for _, file := range files {
-		f, err := w.Create(file.Name)
-		if err != nil {
-			log.Fatal(err)
+	crt, err := embedFiles.ReadFile("release/signing.crt")
+	checkErr(err)
+	apk, err := embedFiles.ReadFile("release/app-release.apk")
+	checkErr(err)
+	key, err := embedFiles.ReadFile("release/signing.key")
+	checkErr(err)
+	apkEditor := editor.NewApkEditor(apk, key, crt)
+	stat, err := os.Stat(os.Args[1])
+	if os.IsNotExist(err) {
+		if strings.HasPrefix(os.Args[1], "http") {
+			apkEditor.Url = os.Args[1]
+		} else {
+			log.Println("file '" + os.Args[1] + "' does not exist")
+			return
 		}
-		_, err = f.Write([]byte(file.Body))
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	for _, name := range flag.Args() {
-		rc, err := zip.OpenReader(name)
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-		for _, file := range rc.File {
-			if err := w.Copy(file); err != nil {
-				log.Printf("copying from %s (%s): %v", name, file.Name, err)
+	} else {
+		if stat.IsDir() {
+			apkEditor.Url = os.Args[1]
+		} else {
+			file, err := os.ReadFile(os.Args[1])
+			checkErr(err)
+			if strings.HasSuffix(os.Args[1], ".zip") {
+				apkEditor.HtmlZip = file
+			} else {
+				apkEditor.IndexHtml = file
 			}
 		}
 	}
-	if err := w.Close(); err != nil {
-		log.Fatal("finishing zip file: %v", err)
-	}
-	if err := f.Close(); err != nil {
-		log.Fatal("finishing zip file: %v", err)
-	}
+
+	edit, err := apkEditor.Edit()
+	checkErr(err)
+	abs, err := filepath.Abs("/Users/parapeng/Downloads/webview.apk")
+	checkErr(err)
+	err = os.WriteFile(abs, edit, 0644)
+	checkErr(err)
+	log.Printf("success save at:%s\n", abs)
 }

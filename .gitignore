@@ -5,3 +5,8 @@
 /WebviewDemo/.idea
 /WebviewDemo/gradle
 /WebviewDemo/release
+/zip/testdata
+/app/bin
+/app/html/.vite
+/app/html/dist
+/app/html/src/.vscode

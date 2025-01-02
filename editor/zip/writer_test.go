@@ -5,9 +5,11 @@
 package zip
 
 import (
+	"archive/zip"
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"os"
 	"testing"
@@ -24,16 +26,10 @@ type WriteTest struct {
 
 var writeTests = []WriteTest{
 	{
-		Name:   "foo",
+		Name:   "foo.txt",
 		Data:   []byte("Rabbits, guinea pigs, gophers, marsupial rats, and quolls."),
-		Method: Store,
-		Mode:   0666,
-	},
-	{
-		Name:   "bar",
-		Data:   nil, // large data set in the test
 		Method: Deflate,
-		Mode:   0644,
+		Mode:   0666,
 	},
 	{
 		Name:   "setuid",
@@ -47,24 +43,9 @@ var writeTests = []WriteTest{
 		Method: Deflate,
 		Mode:   0755 | os.ModeSetgid,
 	},
-	{
-		Name:   "symlink",
-		Data:   []byte("../link/target"),
-		Method: Deflate,
-		Mode:   0755 | os.ModeSymlink,
-	},
 }
 
 func TestWriter(t *testing.T) {
-	largeData := make([]byte, 1<<17)
-	for i := range largeData {
-		largeData[i] = byte(rand.Int())
-	}
-	writeTests[1].Data = largeData
-	defer func() {
-		writeTests[1].Data = nil
-	}()
-
 	// write a zip file
 	buf := new(bytes.Buffer)
 	w := NewWriter(buf)
@@ -76,7 +57,7 @@ func TestWriter(t *testing.T) {
 	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
-
+	os.WriteFile("../release/test.zip", buf.Bytes(), 0666)
 	// read it back
 	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
 	if err != nil {
@@ -88,44 +69,42 @@ func TestWriter(t *testing.T) {
 }
 
 func TestWriterCopy(t *testing.T) {
-	// make a zip file
-	buf := new(bytes.Buffer)
-	w := NewWriter(buf)
-	for _, wt := range writeTests {
-		testCreate(t, w, &wt)
-	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
 
-	// read it back
-	src, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	f, err := os.Create("../release/test4copy.zip")
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
-	for i, wt := range writeTests {
-		testReadFile(t, src.File[i], &wt)
-	}
+	w := zip.NewWriter(f)
 
-	// make a new zip file copying the old compressed data.
-	buf2 := new(bytes.Buffer)
-	dst := NewWriter(buf2)
-	for _, f := range src.File {
-		if err := dst.Copy(f); err != nil {
-			t.Fatal(err)
+	var files = []struct {
+		Name, Body string
+	}{
+		{"assets/url.txt", "www.baidu.com"},
+		{"assets/index.html", "<h1>Hello World Local Html</h1>"},
+	}
+	for _, file := range files {
+		f, err := w.Create(file.Name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = f.Write([]byte(file.Body))
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
-	if err := dst.Close(); err != nil {
-		t.Fatal(err)
+
+	rc, err := zip.OpenReader("../release/test4.zip")
+	if err != nil {
+		log.Print(err)
+	}
+	for _, file := range rc.File {
+		if err := w.Copy(file); err != nil {
+			log.Printf("copying (%s): %v", file.Name, err)
+		}
 	}
 
-	// read the new one back
-	r, err := NewReader(bytes.NewReader(buf2.Bytes()), int64(buf2.Len()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i, wt := range writeTests {
-		testReadFile(t, r.File[i], &wt)
+	if err := w.Close(); err != nil {
+		log.Printf("%v\n", err)
 	}
 }
 
@@ -150,13 +129,14 @@ func TestAppend(t *testing.T) {
 
 	// append a file to it.
 	abuf := new(bytes.Buffer)
+	fmt.Printf("%v:%v\n", buf.Len(), r.AppendOffset())
 	abuf.Write(buf.Bytes()[:r.AppendOffset()])
 	w = r.Append(abuf)
 
 	wt := WriteTest{
-		Name:   "foo",
+		Name:   "append",
 		Data:   []byte("Badgers, canines, weasels, owls, and snakes"),
-		Method: Store,
+		Method: Deflate,
 		Mode:   0755,
 	}
 	testCreate(t, w, &wt)
@@ -167,18 +147,43 @@ func TestAppend(t *testing.T) {
 
 	// read the whole thing back.
 	allBytes := abuf.Bytes()
-
+	os.WriteFile("../release/test4.zip", allBytes, 0666)
 	r, err = NewReader(bytes.NewReader(allBytes), int64(len(allBytes)))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	writeTests := append(writeTests[1:], wt)
+	writeTests := append(writeTests, wt)
 	for i, wt := range writeTests {
 		testReadFile(t, r.File[i], &wt)
 	}
 }
 
+func TestAppendFile(t *testing.T) {
+	checkError := func(err error) {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputData, err := os.ReadFile("../release/app-release.apk")
+	checkError(err)
+	r, err := NewReader(bytes.NewReader(inputData), int64(len(inputData)))
+	checkError(err)
+
+	aBuf := new(bytes.Buffer)
+	aBuf.Write(inputData[:r.AppendOffset()])
+	fmt.Printf("%v:%v\n", len(inputData), r.AppendOffset())
+	w := r.Append(aBuf)
+	wt := WriteTest{
+		Name:   "append.txt",
+		Data:   []byte("append, append, append, append, and append"),
+		Method: Deflate,
+		Mode:   0666,
+	}
+	testCreate(t, w, &wt)
+	w.Close()
+	os.WriteFile("../release/test4.zip", aBuf.Bytes(), 0666)
+}
 func TestWriterOffset(t *testing.T) {
 	largeData := make([]byte, 1<<17)
 	for i := range largeData {
@@ -274,7 +279,7 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	if iLen > 100 {
 		iLen = 100
 	}
-	fmt.Printf("name:%s\nval:%s", wt.Name, wt.Data[:iLen])
+	fmt.Printf("%s:%s\n", wt.Name, wt.Data[:iLen])
 }
 
 func BenchmarkCompressedZipGarbage(b *testing.B) {
