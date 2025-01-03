@@ -192,8 +192,8 @@ func (z *Reader) AppendOffset() int64 {
 // When the returned writer is closed, any entries with names that
 // already exist in the archive will have been "replaced" by the new
 // entries, although the original data will still be there.
-func (z *Reader) Append(w io.Writer) *Writer {
-	return newAppendingWriter(z, w)
+func (z *Reader) Append(w io.Writer, skipManifest bool) *Writer {
+	return newAppendingWriter(z, w, skipManifest)
 }
 
 type checksumReader struct {

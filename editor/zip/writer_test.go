@@ -131,7 +131,7 @@ func TestAppend(t *testing.T) {
 	abuf := new(bytes.Buffer)
 	fmt.Printf("%v:%v\n", buf.Len(), r.AppendOffset())
 	abuf.Write(buf.Bytes()[:r.AppendOffset()])
-	w = r.Append(abuf)
+	w = r.Append(abuf, false)
 
 	wt := WriteTest{
 		Name:   "append",
@@ -173,7 +173,7 @@ func TestAppendFile(t *testing.T) {
 	aBuf := new(bytes.Buffer)
 	aBuf.Write(inputData[:r.AppendOffset()])
 	fmt.Printf("%v:%v\n", len(inputData), r.AppendOffset())
-	w := r.Append(aBuf)
+	w := r.Append(aBuf, false)
 	wt := WriteTest{
 		Name:   "append.txt",
 		Data:   []byte("append, append, append, append, and append"),

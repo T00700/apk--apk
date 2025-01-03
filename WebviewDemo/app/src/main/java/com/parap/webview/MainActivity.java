@@ -1,14 +1,15 @@
 package com.parap.webview;
 
+import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.SslErrorHandler;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.WebSettings;
-import android.webkit.WebResourceRequest;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -16,8 +17,6 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-
-import android.net.http.SslError;
 
 public class MainActivity extends AppCompatActivity {
     private WebView webView;
@@ -133,12 +132,6 @@ public class MainActivity extends AppCompatActivity {
         
         webView.setWebViewClient(new WebViewClient() {
             @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                // 旧版本的实现（API 23及以下）
-                return shouldOverrideUrlLoadingCommon(url);
-            }
-
-            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 // 新版本的实现（API 24及以上）
                 return shouldOverrideUrlLoadingCommon(request.getUrl().toString());
@@ -159,11 +152,6 @@ public class MainActivity extends AppCompatActivity {
                 handler.proceed();
             }
 
-            @Override
-            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-                // 忽略所有错误
-                super.onReceivedError(view, errorCode, description, failingUrl);
-            }
 
             @Override
             public void onPageFinished(WebView view, String url) {

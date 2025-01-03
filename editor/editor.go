@@ -14,10 +14,35 @@ import (
 const ASSETS_DIR = "assets/"
 
 type Manifest struct {
-	VersionCode int
+	VersionCode uint32
 	VersionName string
 	Label       string
 	Package     string
+}
+
+var DefaultManifest = &Manifest{
+	VersionCode: 111,
+	VersionName: "111.111.111",
+	Label:       "WebViewDemo",
+	Package:     "com.parap.webview",
+}
+
+func (m *Manifest) Modify(manifest []byte) ([]byte, error) {
+	var ms []ModifyInfo[string]
+	if m.Label != "" && m.Label != DefaultManifest.Label {
+		ms = append(ms, ModifyInfo[string]{DefaultManifest.Label, m.Label})
+	}
+	if m.Package != "" && m.Package != DefaultManifest.Package {
+		ms = append(ms, ModifyInfo[string]{DefaultManifest.Package, m.Package})
+	}
+	if m.VersionName != "" && m.VersionName != DefaultManifest.VersionName {
+		ms = append(ms, ModifyInfo[string]{DefaultManifest.VersionName, m.VersionName})
+	}
+	if m.VersionCode != 0 && m.VersionCode != DefaultManifest.VersionCode {
+		return Modify(manifest, ModifyInfo[uint32]{DefaultManifest.VersionCode, m.VersionCode}, ms)
+	} else {
+		return Modify(manifest, ms)
+	}
 }
 
 type MergeEntry struct {
@@ -54,12 +79,12 @@ func (a *ApkEditor) Edit() ([]byte, error) {
 	}
 	aBuf := new(bytes.Buffer)
 	aBuf.Write(a.apkRaw[:r.AppendOffset()])
-	w := r.Append(aBuf)
+	w := r.Append(aBuf, a.Manifest != nil)
 	err = merge(w, modifyContent...)
 	if err != nil {
 		return nil, err
 	}
-	err = a.manifest(w)
+	err = a.manifest(r, w)
 	if err != nil {
 		return nil, err
 	}
@@ -92,9 +117,17 @@ func (a *ApkEditor) modifyContent() ([]*MergeEntry, error) {
 	}
 	return mergeEntries, nil
 }
-func (a *ApkEditor) manifest(w *zip.Writer) error {
-	//todo 添加对AndroidManifest.xml的修改,
-	//目前不知道怎么才能让原始apk不压缩AndroidManifest.xml,然后还要修改对应的zip代码
+
+func (a *ApkEditor) manifest(r *zip.Reader, w *zip.Writer) error {
+	manifest, err := readManifest(r)
+	if err != nil {
+		return err
+	}
+
+	err = merge(w, &MergeEntry{zip.ANDROIDMANIFEST, manifest})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 func zipContent(zipData []byte) ([]*MergeEntry, error) {
@@ -174,4 +207,25 @@ func merge(w *zip.Writer, mf ...*MergeEntry) error {
 		}
 	}
 	return nil
+}
+func readManifest(r *zip.Reader) ([]byte, error) {
+	//读取源数据
+	for _, f := range r.File {
+		if f.Name == zip.ANDROIDMANIFEST {
+			rc, err := f.Open()
+			if err != nil {
+				return nil, err
+			}
+			b, err := io.ReadAll(rc)
+			if err != nil {
+				return nil, err
+			}
+			err = rc.Close()
+			if err != nil {
+				return nil, err
+			}
+			return b, nil
+		}
+	}
+	return nil, errors.New("no manifest found")
 }

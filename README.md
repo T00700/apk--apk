@@ -1,3 +1,41 @@
+# 使用
+## 修改apk显示的网页
++ 在线网址
+```shell
+apkEditor https://www.example.com
+```
++ 本地文件 仅一个index.html
+```shell
+apkEditor <yourpath>/index.html
+```
++ 本地文件夹 包含html+css+js
+```shell
+apkEditor <your-dir>
+```
++ 本地zip文件 包含html+css+js的zip文件
+```shell
+apkEditor <your-dir>/demo.zip
+```
+## 修改其他信息
+在修改显示的网页的基础上添加
++ label
+  对应application.label  
+  用于显示软件名
++ versionCode
+  对应manifest.android:versionCode  
+  版本号用于更新软件
++ versionName
+  对应manifest.android:versionName  
+  用于显示软件版本号
++ package
+  对应manifest.android:package    
+  软件包名
++ 示例
+```shell
+apkEditor -versionCode=222 -versionName="222.222.222" -label="NewApp" -package="com.example.newapp" https://www.example.com
+```
+
+
 # 通过网页和文件生成一个简单app
 之前发过一个使用[apktool](https://github.com/pzx521521/html2apk)版本的,简单来说就是一个对apk反编译和编译的过程
 但是apktool还是有点问题的:

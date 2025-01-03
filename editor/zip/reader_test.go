@@ -423,7 +423,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	var c []byte
 	if ft.Content != nil {
 		c = ft.Content
-	} else if c, err = ioutil.ReadFile("testdata/" + ft.File); err != nil {
+	} else if c, err = os.ReadFile("testdata/" + ft.File); err != nil {
 		t.Error(err)
 		return
 	}
