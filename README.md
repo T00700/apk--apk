@@ -1,10 +1,11 @@
 # 通过网页和文件生成一个简单app
-之前发过一个使用[apktool](https://github.com/pzx521521/html2apk)版本的,简单来说就是一个对apk反编译和编译的过程
+之前发过一个使用[apktool版本的](https://github.com/pzx521521/html2apk),简单来说就是一个对apk反编译和编译的过程
 但是apktool还是有点问题的:
 + [x] 需要下载jdk/jre,有环境依赖
 + [x] 速度较慢
 + [x] 需要中间调用apktool,不容易部署到服务器/docker
 # 使用
+[Online Demo](https://tool.parap.us.kg/html-to-apk)
 ## 修改apk显示的网页
 + 在线网址
 ```shell
