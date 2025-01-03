@@ -53,7 +53,7 @@ func main() {
 	checkErr(err)
 	apkEditor := editor.NewApkEditor(apk, key, crt)
 	stat, err := os.Stat(inputPath)
-	if os.IsNotExist(err) {
+	if os.IsNotExist(err) || stat == nil {
 		if strings.HasPrefix(inputPath, "http") {
 			apkEditor.Url = inputPath
 		} else {
