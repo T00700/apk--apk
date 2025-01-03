@@ -1,4 +1,4 @@
-module apkEditor
+module github.com/pzx521521/apk-editor
 
 go 1.23.1
 
