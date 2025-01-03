@@ -12,11 +12,11 @@ func TestDecompressXML(t *testing.T) {
 		t.Fatalf("Failed to read file: %v", err)
 	}
 
-	m1 := ModifyInfo[string]{"888.888.888", "6.6.6"}
-	m2 := ModifyInfo[uint32]{999, 666}
-	m3 := ModifyInfo[string]{"WebViewDemo", "TestDemo"}
-	m4 := ModifyInfo[string]{"com.parap.webview", "com.test.webvievwtr"}
-	result, err := Modify(data, m1, m2, m3, m4)
+	m1 := ModifyInfo[string]{DefaultManifest.VersionName, "6.6.6"}
+	m2 := ModifyInfo[uint32]{DefaultManifest.VersionCode, 666}
+	m3 := ModifyInfo[string]{DefaultManifest.Label, "TestDemo"}
+	m4 := ModifyInfo[string]{DefaultManifest.Package, "com.test.webvievwtr"}
+	result, err := ModifyAll(data, m1, m2, m3, m4)
 	if err != nil {
 		t.Fatalf("Failed to modify manifest: %v", err)
 	}

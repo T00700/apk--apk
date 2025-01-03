@@ -3,12 +3,13 @@ package editor
 import (
 	"bytes"
 	"errors"
-	"github.com/pzx521521/apk-editor/editor/signv2"
-	"github.com/pzx521521/apk-editor/editor/zip"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pzx521521/apk-editor/editor/signv2"
+	"github.com/pzx521521/apk-editor/editor/zip"
 )
 
 const ASSETS_DIR = "assets/"
@@ -28,21 +29,36 @@ var DefaultManifest = &Manifest{
 }
 
 func (m *Manifest) Modify(manifest []byte) ([]byte, error) {
-	var ms []ModifyInfo[string]
+	var modifications []any
+
+	// 收集所有修改
 	if m.Label != "" && m.Label != DefaultManifest.Label {
-		ms = append(ms, ModifyInfo[string]{DefaultManifest.Label, m.Label})
+		modifications = append(modifications,
+			ModifyInfo[string]{Old: DefaultManifest.Label, New: m.Label})
 	}
 	if m.Package != "" && m.Package != DefaultManifest.Package {
-		ms = append(ms, ModifyInfo[string]{DefaultManifest.Package, m.Package})
+		modifications = append(modifications,
+			ModifyInfo[string]{Old: DefaultManifest.Package, New: m.Package})
 	}
 	if m.VersionName != "" && m.VersionName != DefaultManifest.VersionName {
-		ms = append(ms, ModifyInfo[string]{DefaultManifest.VersionName, m.VersionName})
+		modifications = append(modifications,
+			ModifyInfo[string]{Old: DefaultManifest.VersionName, New: m.VersionName})
 	}
 	if m.VersionCode != 0 && m.VersionCode != DefaultManifest.VersionCode {
-		return Modify(manifest, ModifyInfo[uint32]{DefaultManifest.VersionCode, m.VersionCode}, ms)
-	} else {
-		return Modify(manifest, ms)
+		modifications = append(modifications,
+			ModifyInfo[uint32]{Old: DefaultManifest.VersionCode, New: m.VersionCode})
 	}
+
+	// 一次性处理所有修改
+	if len(modifications) > 0 {
+		if result, err := ModifyAll(manifest, modifications...); err != nil {
+			return nil, err
+		} else {
+			manifest = result
+		}
+	}
+
+	return manifest, nil
 }
 
 type MergeEntry struct {
@@ -119,11 +135,17 @@ func (a *ApkEditor) modifyContent() ([]*MergeEntry, error) {
 }
 
 func (a *ApkEditor) manifest(r *zip.Reader, w *zip.Writer) error {
+	if a.Manifest == nil {
+		return nil
+	}
 	manifest, err := readManifest(r)
 	if err != nil {
 		return err
 	}
-
+	manifest, err = a.Manifest.Modify(manifest)
+	if err != nil {
+		return err
+	}
 	err = merge(w, &MergeEntry{zip.ANDROIDMANIFEST, manifest})
 	if err != nil {
 		return err

@@ -1,8 +1,18 @@
+# 通过网页和文件生成一个简单app
+之前发过一个使用[apktool](https://github.com/pzx521521/html2apk)版本的,简单来说就是一个对apk反编译和编译的过程
+但是apktool还是有点问题的:
++ [x] 需要下载jdk/jre,有环境依赖
++ [x] 速度较慢
++ [x] 需要中间调用apktool,不容易部署到服务器/docker
 # 使用
 ## 修改apk显示的网页
 + 在线网址
 ```shell
-apkEditor https://www.example.com
+./apkEditor -o="/Users/parapeng/Downloads/app-new.apk" https://www.example.com 
+```
++ 指定输出路径
+```shell
+./apkEditor -o=demo.apk https://www.example.com 
 ```
 + 本地文件 仅一个index.html
 ```shell
@@ -16,6 +26,7 @@ apkEditor <your-dir>
 ```shell
 apkEditor <your-dir>/demo.zip
 ```
+
 ## 修改其他信息
 在修改显示的网页的基础上添加
 + label
@@ -27,21 +38,15 @@ apkEditor <your-dir>/demo.zip
 + versionName
   对应manifest.android:versionName  
   用于显示软件版本号
-+ package
-  对应manifest.android:package    
-  软件包名
-+ 示例
++ package  
+  ~~对应manifest.android:package    
+  软件包名~~
+  修改这个要改的东西太多了,请使用apktool
++ 生成默认的webview并修改信息
 ```shell
-apkEditor -versionCode=222 -versionName="222.222.222" -label="NewApp" -package="com.example.newapp" https://www.example.com
+./apkEditor -versionCode=222 -versionName="2.2.2" -label="NewApp" -o="/Users/parapeng/Downloads/app-new.apk" https://www.example.com
 ```
 
-
-# 通过网页和文件生成一个简单app
-之前发过一个使用[apktool](https://github.com/pzx521521/html2apk)版本的,简单来说就是一个对apk反编译和编译的过程
-但是apktool还是有点问题的:
-+ [x] 需要下载jdk/jre,有环境依赖
-+ [x] 速度较慢
-+ [x] 需要中间调用apktool,不容易部署到服务器/docker
 # 原理
 ## 反编译apk正常的流程是:
 + 解压apk  
@@ -77,6 +82,7 @@ zipalign 困了我好久最好找到源码才知道怎么实现,然后还不知�
 [zipmerge](https://github.com/rsc/zipmerge)  
 [signv2](https://github.com/morrildl/playground-android)
 # todo
-+ [ ] 添加对AndroidManifest.xml的修改,目前不知道怎么才能让原始apk不压缩AndroidManifest.xml
++ [ ] 包名的修改
 + [ ] 图标修改
-+ [ ] 桌面App
++ [ ] 桌面App(UI)
++ [ ] 对其他的app的修改

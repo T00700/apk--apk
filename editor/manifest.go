@@ -6,12 +6,12 @@ import (
 	"fmt"
 )
 
-type StringOrUint32 interface {
+type Modifier interface {
 	~string | ~uint32
 }
 
 // ModifyInfo 定义需要修改的新旧值
-type ModifyInfo[T StringOrUint32] struct {
+type ModifyInfo[T Modifier] struct {
 	Old T
 	New T
 }
@@ -30,29 +30,26 @@ func adjustStringLength(old, new []byte) []byte {
 	return new
 }
 
-// Modify 修改二进制 manifest 文件中的内容
-// 返回修改后的数据和可能的错误
-func Modify(data []byte, modifyInfos ...any) ([]byte, error) {
+// ModifyAll 支持同时处理不同类型的修改
+func ModifyAll(data []byte, modifications ...any) ([]byte, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("empty input data")
 	}
 
 	result := data
-	for _, info := range modifyInfos {
-		switch v := info.(type) {
+	for _, mod := range modifications {
+		switch m := mod.(type) {
 		case ModifyInfo[string]:
-			oldBytes := changeString([]byte(v.Old))
-			newBytes := changeString([]byte(v.New))
+			oldBytes := changeString([]byte(m.Old))
+			newBytes := changeString([]byte(m.New))
 			newBytes = adjustStringLength(oldBytes, newBytes)
 			result = bytes.Replace(result, oldBytes, newBytes, -1)
-
 		case ModifyInfo[uint32]:
-			new := changeUInt32(v.New)
-			old := changeUInt32(v.Old)
+			old := changeUInt32(m.Old)
+			new := changeUInt32(m.New)
 			result = bytes.Replace(result, old, new, -1)
-
 		default:
-			return nil, fmt.Errorf("unsupported type: %T", info)
+			return nil, fmt.Errorf("unsupported modification type: %T", mod)
 		}
 	}
 

@@ -6,6 +6,8 @@ apkEditor:
 	#/Users/parapeng/Library/Android/sdk/build-tools/30.0.3/zipalign -c -v 4 release/notsigned.apk
 	#/Users/parapeng/Library/Android/sdk/build-tools/30.0.3/apksigner sign --ks test.keystore --ks-key-alias "key0" --ks-pass pass:123456 --key-pass pass:123456 --out release/signed.apk  release/notsigned.apk
 	adb install ./release/signed.apk
+install:
+	adb install /Users/parapeng/Downloads/app-new.apk
 build:
 	go build -ldflags "-s -w" -o apkEditor
 build-windows:
