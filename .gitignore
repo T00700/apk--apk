@@ -1,7 +1,6 @@
 
 .DS_Store
 /.idea
-/release
 /WebviewDemo/.idea
 /WebviewDemo/gradle
 /WebviewDemo/release
