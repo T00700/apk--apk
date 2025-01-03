@@ -74,11 +74,15 @@ type ApkEditor struct {
 	apkRaw    []byte
 	keyBytes  []byte
 	certBytes []byte
-	apkSign   *signv2.ApkSign
 }
 
 func NewApkEditor(apk, keyBytes, certBytes []byte) *ApkEditor {
 	return &ApkEditor{apkRaw: apk, keyBytes: keyBytes, certBytes: certBytes}
+}
+func (a *ApkEditor) Init(apk, keyBytes, certBytes []byte) {
+	a.apkRaw = apk
+	a.keyBytes = keyBytes
+	a.certBytes = certBytes
 }
 
 func (a *ApkEditor) Edit() ([]byte, error) {
