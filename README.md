@@ -1,9 +1,9 @@
-# 通过网页和文件生成一个简单app
+# 通过网址或html生成一个简单apk
 之前发过一个使用[apktool版本的](https://github.com/pzx521521/html2apk),简单来说就是一个对apk反编译和编译的过程
-但是apktool还是有点问题的:
-+ [x] 需要下载jdk/jre,有环境依赖
-+ [x] 速度较慢
-+ [x] 需要中间调用apktool,不容易部署到服务器/docker
+相比使用apktool有以下优点:
++ [x] 没有环境依赖,完全不需要 jdk/jre
++ [x] 无需中间调用apktool,容易部署到服务器/docker
+
 # 使用
 [Online Demo](https://tool.parap.us.kg/html-to-apk)
 ## 修改apk显示的网页
@@ -76,9 +76,7 @@ apktool 相当于把`重新打包apk`简化了,并多了解析dex文件
 ## 实现原理
 由于并不需要修改dex中的东西  
 解压->修改->压缩->对齐->签名  
-zipalign 困了我好久最好找到源码才知道怎么实现,然后还不知道问什么这么实现
-[源码](https://github.com/pzx521521/apkEditor)
-[在线体验](https://github.com/pzx521521/apkEditor)
+
 # 参考引用:  
 [zipmerge](https://github.com/rsc/zipmerge)  
 [signv2](https://github.com/morrildl/playground-android)
@@ -87,3 +85,8 @@ zipalign 困了我好久最好找到源码才知道怎么实现,然后还不知�
 + [ ] 图标修改
 + [ ] 桌面App(UI)
 + [ ] 对其他的app的修改
+
+# 下载
+[github](https://github.com/pzx521521/apk-editor/releases/)  
+[windows](https://wwtw.lanzouq.com/igyEI2ju0vgj)  
+[macos](https://wwtw.lanzouq.com/iQRrp2ju12sd)  
