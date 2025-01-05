@@ -1,4 +1,4 @@
-package app
+package main
 
 import (
 	"fmt"
@@ -16,16 +16,14 @@ func main() {
 }
 func run(w webview.WebView) {
 	tls := runtime.GOOS != "windows"
-	server, addr, err := runHttp(tls)
+	server, _, err := runHttp(tls)
 	if err != nil {
 		return
 	}
 	bind(w)
-	scheme := "http"
-	if tls {
-		scheme += "s"
-	}
-	w.Navigate(fmt.Sprintf("%s://localhost:%d/", scheme, addr.Port))
+	index := fmt.Sprintf("%s/html-to-apk", vwPort)
+	fmt.Printf("%v\n", index)
+	w.Navigate(index)
 	w.Run()
 	server.Close()
 }
@@ -34,5 +32,9 @@ func bind(w webview.WebView) {
 	// A binding that increments a value and immediately returns the new value.
 	w.Bind("log", func(logText string) {
 		log.Println(logText)
+	})
+
+	w.Bind("wvPort", func() string {
+		return vwPort
 	})
 }

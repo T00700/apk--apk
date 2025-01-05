@@ -12,10 +12,5 @@ build:
 	go build -ldflags "-s -w" -o apkEditor
 build-windows:
 	GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o apkEditor.exe
-uiBuild:
-	go build  -ldflags "-s -w" -o bin/webview.app/Contents/MacOS/webview
-uiBuild-windows:
-	CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -H windowsgui" -o bin/webview.exe
-
 upload:
 	aws s3 sync ./release s3://app/html2apk --region auto --endpoint-url https://408393949eb505f73a9af86454446f19.r2.cloudflarestorage.com

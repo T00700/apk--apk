@@ -1,4 +1,4 @@
-package app
+package main
 
 import (
 	"crypto/tls"
@@ -15,15 +15,28 @@ var embeddedFiles embed.FS
 //go:embed pem/cert.pem pem/key.pem
 var pemFiles embed.FS
 
+var vwPort string
 var staticHandler = http.FileServer(http.FS(embeddedFiles))
 
 func fileHandle(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = "html/dist" + r.URL.Path
+	_, err := embeddedFiles.Open(r.URL.Path)
+	if err != nil {
+		//默认返回主页
+		r.URL.Path = "html/dist/"
+	}
 	staticHandler.ServeHTTP(w, r)
+
+}
+func getHttpSchema(tls bool) string {
+	if tls {
+		return "https"
+	}
+	return "http"
 }
 func runHttp(tls bool) (*http.Server, *net.TCPAddr, error) {
 	http.HandleFunc("/", fileHandle)
-	http.HandleFunc("/api/process-text", processTextHandler)
+	http.HandleFunc("/tool/html2apk", Html2Apk)
 	// 创建一个监听器，端口设置为 0，表示由系统分配空闲端口
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -31,8 +44,9 @@ func runHttp(tls bool) (*http.Server, *net.TCPAddr, error) {
 	}
 	server := &http.Server{TLSConfig: getTlsConf()}
 	addr := listener.Addr().(*net.TCPAddr)
+	vwPort = fmt.Sprintf("%s://localhost:%d", getHttpSchema(tls), addr.Port)
+	fmt.Println(vwPort)
 	go func(server *http.Server) {
-		fmt.Printf("Serving embedded files at https://localhost:%d\n", addr.Port)
 		if tls {
 			server.ServeTLS(listener, "", "")
 		} else {

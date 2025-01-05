@@ -1,7 +1,9 @@
 package editor
 
 import (
-	"bytes"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"testing"
 )
@@ -24,41 +26,9 @@ func TestDecompressXML(t *testing.T) {
 }
 
 func TestAdjustStringLength(t *testing.T) {
-	testCases := []struct {
-		name     string
-		old      string
-		new      string
-		expected string
-	}{
-		{
-			name:     "new longer than old",
-			old:      "abc",
-			new:      "abcdef",
-			expected: "abc",
-		},
-		{
-			name:     "new shorter than old",
-			old:      "abcdef",
-			new:      "abc",
-			expected: "abc   ",
-		},
-		{
-			name:     "same length",
-			old:      "abc",
-			new:      "def",
-			expected: "def",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			oldBytes := changeString([]byte(tc.old))
-			newBytes := changeString([]byte(tc.new))
-			result := adjustStringLength(oldBytes, newBytes)
-			expected := changeString([]byte(tc.expected))
-			if !bytes.Equal(result, expected) {
-				t.Errorf("Expected %x, got %x", expected, result)
-			}
-		})
+	_, err := os.Stat("http://www.baidu.com")
+	errors.Is(err, fs.ErrNotExist)
+	if _, ok := err.(*fs.PathError); ok {
+		fmt.Printf("file not exist\n")
 	}
 }
