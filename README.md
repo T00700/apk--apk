@@ -5,6 +5,7 @@
 + [x] 无需中间调用apktool,容易部署到服务器/docker
 
 # 使用
+[![pEpYK4s.png](https://s21.ax1x.com/2025/01/03/pEpYK4s.png)](https://imgse.com/i/pEpYK4s)
 [Online Demo](https://tool.parap.us.kg/html-to-apk)
 ## 修改apk显示的网页
 + 在线网址
@@ -90,3 +91,7 @@ apktool 相当于把`重新打包apk`简化了,并多了解析dex文件
 [github](https://github.com/pzx521521/apk-editor/releases/)  
 [windows](https://wwtw.lanzouq.com/igyEI2ju0vgj)  
 [macos](https://wwtw.lanzouq.com/iQRrp2ju12sd)  
+
+## 感觉命令行不太友好.放上GUI的程序
+[windows(需要webview2)](https://wwtw.lanzouq.com/iqhJ22kchoij) 
+[macos](https://wwtw.lanzouq.com/i8ztx2kchp1i)
