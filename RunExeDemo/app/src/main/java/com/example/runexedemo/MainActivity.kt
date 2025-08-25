@@ -45,6 +45,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.rememberLazyListState
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,6 +126,19 @@ fun RunScreen(modifier: Modifier = Modifier) {
     }
     var expanded by remember { mutableStateOf(false) }
     var selectedSo by remember { mutableStateOf(exeFiles.firstOrNull() ?: "") }
+    var wrap by remember { mutableStateOf(false) }
+    var filter by remember { mutableStateOf("") }
+
+    // derive displayed lines with filter
+    val lines = remember(output, filter) {
+        val src = if (filter.isBlank()) output else output
+            .lineSequence()
+            .filter { it.contains(filter, ignoreCase = true) }
+            .joinToString("\n")
+        if (src.isEmpty()) emptyList() else src.split('\n')
+    }
+    val listState = rememberLazyListState()
+
     Column(modifier = modifier.padding(16.dp)) {
         Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
@@ -144,40 +168,78 @@ fun RunScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-        Button(onClick = {
-            if (!running) {
-                output = ""
-                running = true
-                val cfg = ConfigManager.ensureConfig(ctx)
-                handle = BinaryRunner.runStreaming(
-                    context = ctx,
-                    libName = selectedSo,
-                    "--config", cfg.absolutePath,
-                    onLine = { line ->
-                        output += if (output.isEmpty()) line else "\n$line"
-                    },
-                    onExit = { code ->
-                        output += if (output.isEmpty()) "exit=$code" else "\nexit=$code"
-                        running = false
-                    }
-                )
-            } else {
-                handle?.stop()
+        // One-line controls: Run button + wrap toggle + filter field
+        Row(modifier = Modifier.padding(top = 8.dp)) {
+            Button(onClick = {
+                if (!running) {
+                    output = ""
+                    running = true
+                    val cfg = ConfigManager.ensureConfig(ctx)
+                    handle = BinaryRunner.runStreaming(
+                        context = ctx,
+                        libName = selectedSo,
+                        "--config", cfg.absolutePath,
+                        onLine = { line ->
+                            output += if (output.isEmpty()) line else "\n$line"
+                        },
+                        onExit = { code ->
+                            output += if (output.isEmpty()) "exit=$code" else "\nexit=$code"
+                            running = false
+                        }
+                    )
+                } else {
+                    handle?.stop()
+                }
+            }) {
+                Text(if (running) "Stop" else "Run", fontSize = 14.sp)
             }
-        }) {
-            Text(if (running) "Stop" else "Run")
-        }
-        SelectionContainer {
-            Text(output, modifier = Modifier
-                .padding(top = 12.dp)
-                .verticalScroll(scrollState)
+            Spacer(modifier = Modifier.width(12.dp))
+            Row {
+                Text("换行", fontSize = 12.sp)
+                Spacer(modifier = Modifier.width(6.dp))
+                Switch(checked = wrap, onCheckedChange = { wrap = it })
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            OutlinedTextField(
+                value = filter,
+                onValueChange = { filter = it },
+                label = { Text("过滤关键词", fontSize = 12.sp) },
+                modifier = Modifier.weight(1f),
+                singleLine = true
             )
         }
-        LaunchedEffect(output) {
-            if (output.isNotEmpty()) {
-                coroutineScope.launch {
-                    scrollState.animateScrollTo(scrollState.maxValue)
+        SelectionContainer {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .fillMaxWidth()
+            ) {
+                itemsIndexed(lines) { index, line ->
+                    val bg = if (index % 2 == 0)
+                        MaterialTheme.colorScheme.surface
+                    else
+                        MaterialTheme.colorScheme.surfaceVariant
+                    Box(
+                        modifier = Modifier
+                            .background(bg)
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        val lineModifier = if (wrap) Modifier else Modifier.horizontalScroll(rememberScrollState())
+    Text(
+                            text = line,
+                            softWrap = wrap,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = lineModifier
+                        )
+                    }
                 }
+            }
+        }
+        LaunchedEffect(lines.size) {
+            if (lines.isNotEmpty()) {
+                listState.animateScrollToItem(lines.size - 1)
             }
         }
     }
