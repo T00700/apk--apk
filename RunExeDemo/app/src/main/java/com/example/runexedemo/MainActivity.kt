@@ -43,6 +43,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,6 +103,7 @@ fun RunScreen(modifier: Modifier = Modifier) {
     var running by remember { mutableStateOf(false) }
     var handle by remember { mutableStateOf<BinaryRunner.StreamingHandle?>(null) }
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
     // discover .so files from nativeLibraryDir
     val nativeLibDir = ctx.applicationInfo.nativeLibraryDir
     val exeFiles = remember(nativeLibDir) {
@@ -169,6 +172,13 @@ fun RunScreen(modifier: Modifier = Modifier) {
                 .padding(top = 12.dp)
                 .verticalScroll(scrollState)
             )
+        }
+        LaunchedEffect(output) {
+            if (output.isNotEmpty()) {
+                coroutineScope.launch {
+                    scrollState.animateScrollTo(scrollState.maxValue)
+                }
+            }
         }
     }
 }

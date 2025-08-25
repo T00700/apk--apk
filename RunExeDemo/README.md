@@ -1,30 +1,65 @@
-# Android 运行原生二进制文件示例
-这个项目演示了如何在Android应用中运行交叉编译的原生二进制文件。碰到的坑记录一下
+# RunExeDemo (Android)
 
-## 编写简单程序 交叉编译并且adb 测试
-编译:
-```shell
-SET CGO_ENABLED=0
-SET GOOS=android
-SET GOARCH=arm64
-go build -buildmode=pie -ldflags="-s -w" -o ..\app\src\main\jniLibs\arm64-v8a\app_arm64.so
+Android app that runs a bundled native executable (.so) and streams its output in real time. Includes an in-app JSON config editor and a bottom navigation to switch between Run and Config screens.
+
+## Features
+- Run native binary from app `nativeLibraryDir` (packaged under `app/src/main/jniLibs/...`).
+- Real-time stdout/stderr streaming with auto-scroll to latest line.
+- Output text is selectable (long-press to copy).
+- Pick which `.so` to run from a dropdown populated from `nativeLibraryDir` (filters out `libandroidx*`).
+- JSON config stored in app private storage (`files/config/config.json`), auto-saves while editing.
+- Binary invoked with `--config <absolute_path>` automatically.
+
+## Project layout (key parts)
+- `app/src/main/java/com/example/runexedemo/MainActivity.kt` – UI (Run/Config tabs, streaming, dropdown, auto-scroll).
+- `app/src/main/java/com/example/runexedemo/BinaryRunner.kt` – Process launcher (runs selected `.so`, injects `--config`).
+- `app/src/main/java/com/example/runexedemo/ConfigManager.kt` – JSON config read/write in app private dir.
+- `app/src/main/jniLibs/arm64-v8a/libexample_arm64.so` – Example native binary (packaged as a .so so it resides in `nativeLibraryDir`).
+- `example_go/main.go` – Sample Go program demonstrating `--config`, progressive output.
+
+## Requirements
+- Android Studio Giraffe+ (or recent), Android Gradle Plugin per `gradle/libs.versions.toml`.
+- Device with arm64-v8a (recommended). Min SDK 24.
+
+## Building & Running
+1. Place your native binary as a PIE ET_DYN executable named like `lib<name>.so` under:
+   - `app/src/main/jniLibs/arm64-v8a/`
+2. Build and run from Android Studio.
+3. In the app:
+   - Go to Config tab to edit `config.json` (auto-saved).
+   - Go to Run tab, pick the `.so`, press Run. Output streams live; press Stop to terminate.
+
+## Go cross-compile quick guide (arm64)
+```bash
+# Windows PowerShell example
+$env:CGO_ENABLED="0"
+$env:GOOS="android"
+$env:GOARCH="arm64"
+# Build a PIE ET_DYN executable (.so name for packaging under jniLibs)
+go build -buildmode=pie -ldflags "-s -w" -o libexample_arm64.so ./example_go
 ```
+Notes:
+- Android 5.0+ requires PIE.
+- Provide arm64-v8a at minimum for modern devices.
 
-adb push 到 `/data/local/tmp`(只有此目录能运行二进制文件) 注意加权限
-```shell
-adb push app\src\main\jniLibs\arm64-v8a\app_arm64.so /data/local/tmp
-adb shell chmod 777 /data/local/tmp/app_arm64.so 
-adb shell /data/local/tmp/app_arm64.so
-```
-## android app 调用二进制文件
-+ 普通应用（app uid，SELinux domain=untrusted_app）默认无法访问/data/local/tmp（该目录属主shell:shell，一般771），没有读写权限，只有 adb shell（uid=shell）或 root 才能用
-+ Android 5.0+ 必须 PIE：-buildmode=pie
-+ 从 Android 10 (API level 29) 开始，Google 加强了安全策略，明确禁止从应用数据目录 (/data/data/... 或 /data/user/0/...) 直接执行二进制文件。[execute-permission](https://developer.android.com/about/versions/10/behavior-changes-10?utm_source=chatgpt.com&hl=zh-cn#execute-permission)[stackoverflow](https://stackoverflow.com/questions/62391811/android-10-alternative-to-launching-executable-as-subproccess-stored-in-app-ho?utm_source=chatgpt.com)
-+ 执行报错:`error=13, Permission denied`
-+ 需要从 nativeLibraryDir 运行 libexample_arm64.so(为了打包方便加了后缀.so)
+## Network
+- Manifest includes INTERNET permission.
+- If your binary uses Go `net/http` and DNS fails on some devices (e.g., attempts `[::1]:53`), implement a custom `net.Resolver` with a public DNS (1.1.1.1 / 8.8.8.8) or allow the app side to resolve and pass an IP.
 
-## 其他问题
-### golang编译到android DNS 解析出问题
-Post "xxx": dial tcp: lookup h5.if.qidian.com on [::1]:53: dial udp [::1]:53: socket: operation not permitted  
-原因是在 Android 上交叉编译的 Go 程序默认用 netdns=go，它会尝试直接用 127.0.0.1 或 [::1] 上的 DNS，结果因为 Android 系统上根本没监听这个端口，所以解析失败  
-最简单的方法是 自定义dns解析  
+## Permissions & Execution constraints
+- App cannot execute from `/data/local/tmp` or external storage. Binaries run from the app’s `nativeLibraryDir`.
+- Executing from `filesDir` may be blocked on some OEMs; this project avoids that by packaging under `jniLibs`.
+
+## Troubleshooting
+- Permission denied (EACCES): ensure you are executing from `nativeLibraryDir` and the binary is a valid PIE executable for the device ABI.
+- Exec format error: architecture mismatch; rebuild for arm64-v8a.
+- No such file: ensure your `.so` exists in `app/src/main/jniLibs/arm64-v8a/` and is included by Gradle sync.
+- DNS errors in Go: use a custom `net.Resolver` or configurable `--dns` option.
+
+## Customization tips
+- Rename the example `.so` and adjust default in `BinaryRunner.kt` if desired.
+- The dropdown filters out `libandroidx*`; extend the filter to hide other system libs.
+- UI built with Compose Material3; tweak colors in `NavigationBarItemDefaults.colors`.
+
+## License
+This project is for demonstration purposes. Add your preferred license here.
