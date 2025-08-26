@@ -25,6 +25,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -36,6 +37,21 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+
+    // Ensure .so files are extracted to a filesystem path (nativeLibraryDir)
+    // so our app can enumerate/execute them even in release builds.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    // Optional: limit ABIs to those you provide under jniLibs
+    defaultConfig {
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 }
 

@@ -165,7 +165,7 @@ func TestAppendFile(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	inputData, err := os.ReadFile("../release/app-release.apk")
+	inputData, err := os.ReadFile("../release/html.apk")
 	checkError(err)
 	r, err := NewReader(bytes.NewReader(inputData), int64(len(inputData)))
 	checkError(err)

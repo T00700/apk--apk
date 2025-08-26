@@ -27,7 +27,7 @@ func html2Apk(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	apk, err := embedFiles.ReadFile("release/app-release.apk")
+	apk, err := embedFiles.ReadFile("release/html.apk")
 	if err != nil {
 		return err
 	}

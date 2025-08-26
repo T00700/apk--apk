@@ -28,7 +28,10 @@ apkEditor <your-dir>
 ```shell
 apkEditor <your-dir>/demo.zip
 ```
-
++ 本地so文件 
+```shell
+apkEditor <your-dir>/app.so
+```
 ## 修改其他信息
 在修改显示的网页的基础上添加
 + label

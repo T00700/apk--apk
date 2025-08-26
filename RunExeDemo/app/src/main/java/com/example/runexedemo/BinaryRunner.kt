@@ -8,7 +8,7 @@ import java.io.InputStreamReader
 import java.util.concurrent.Executors
 
 object BinaryRunner {
-    private const val LIB_FILE_NAME = "app_arm64.so"
+    private const val LIB_FILE_NAME = "lib_app_arm64.so"
 
     data class Result(
         val exitCode: Int,

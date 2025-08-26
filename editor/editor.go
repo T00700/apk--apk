@@ -14,6 +14,8 @@ import (
 
 const ASSETS_DIR = "assets/"
 
+const Lib_DIR = "lib/arm64-v8a/"
+
 type Manifest struct {
 	VersionCode uint32
 	VersionName string
@@ -67,13 +69,15 @@ type MergeEntry struct {
 }
 
 type ApkEditor struct {
-	Url       string    `json:"url,omitempty"`
-	IndexHtml []byte    `json:"index_html,omitempty"`
-	HtmlZip   []byte    `json:"html_zip,omitempty"`
-	Manifest  *Manifest `json:"manifest,omitempty"`
-	apkRaw    []byte
-	keyBytes  []byte
-	certBytes []byte
+	Url        string `json:"url,omitempty"`
+	IndexHtml  []byte `json:"index_html,omitempty"`
+	HtmlZip    []byte `json:"html_zip,omitempty"`
+	SoFile     []byte `json:"so_file"`
+	SoFileName string
+	Manifest   *Manifest `json:"manifest,omitempty"`
+	apkRaw     []byte
+	keyBytes   []byte
+	certBytes  []byte
 }
 
 func NewApkEditor(apk, keyBytes, certBytes []byte) *ApkEditor {
@@ -134,6 +138,15 @@ func (a *ApkEditor) modifyContent() ([]*MergeEntry, error) {
 			return nil, err
 		}
 		mergeEntries = append(mergeEntries, content...)
+	} else if a.SoFile != nil && len(a.SoFile) > 0 {
+		soName := a.SoFileName
+		if !strings.HasPrefix(soName, "lib") {
+			soName = "lib_" + soName
+		}
+		if filepath.Ext(soName) != ".so" {
+			soName += ".so"
+		}
+		mergeEntries = append(mergeEntries, &MergeEntry{Lib_DIR + soName, []byte(a.SoFile)})
 	}
 	return mergeEntries, nil
 }
@@ -179,6 +192,7 @@ func zipContent(zipData []byte) ([]*MergeEntry, error) {
 	}
 	return mergeEntries, nil
 }
+
 func dirContent(dir string) ([]*MergeEntry, error) {
 	mergeEntrys := []*MergeEntry{}
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {

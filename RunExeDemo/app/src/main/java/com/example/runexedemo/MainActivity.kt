@@ -171,8 +171,12 @@ fun RunScreen(modifier: Modifier = Modifier) {
         // One-line controls: Run button + wrap toggle + filter field
         Row(modifier = Modifier.padding(top = 8.dp)) {
             Button(onClick = {
+                output = "nativeLibraryDir: $nativeLibDir\n"
+                if (selectedSo ==""){
+                    output += "找不到.so文件"
+                    return@Button
+                }
                 if (!running) {
-                    output = ""
                     running = true
                     val cfg = ConfigManager.ensureConfig(ctx)
                     handle = BinaryRunner.runStreaming(
@@ -227,7 +231,7 @@ fun RunScreen(modifier: Modifier = Modifier) {
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         val lineModifier = if (wrap) Modifier else Modifier.horizontalScroll(rememberScrollState())
-    Text(
+                        Text(
                             text = line,
                             softWrap = wrap,
                             fontFamily = FontFamily.Monospace,

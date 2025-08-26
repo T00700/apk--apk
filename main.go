@@ -23,7 +23,7 @@ func main() {
 	versionName := flag.String("versionName", "111.111.111", "应用的版本名称 (111.111.111)")
 	label := flag.String("label", "WebViewDemo", "应用的标签 (WebViewDemo)")
 	packageName := flag.String("package", "com.parap.webview", "应用的包名 (com.parap.webview)")
-	output := flag.String("o", "webview.apk", "输出文件路径")
+	output := flag.String("o", "demo.apk", "输出文件路径")
 	// 解析命令行参数
 	flag.Parse()
 	args := flag.Args()
@@ -42,11 +42,11 @@ func main() {
 	crt, err := embedFiles.ReadFile("release/signing.crt")
 	checkErr(err)
 	var apk []byte
-	if filepath.Ext(inputPath) == ".apk" {
-		apk, err = os.ReadFile(inputPath)
+	if filepath.Ext(inputPath) == ".so" {
+		apk, err = os.ReadFile("release/so.apk")
 		checkErr(err)
 	} else {
-		apk, err = embedFiles.ReadFile("release/app-release.apk")
+		apk, err = embedFiles.ReadFile("release/html.apk")
 		checkErr(err)
 	}
 	key, err := embedFiles.ReadFile("release/signing.key")
@@ -66,10 +66,18 @@ func main() {
 		} else {
 			file, err := os.ReadFile(inputPath)
 			checkErr(err)
-			if strings.HasSuffix(inputPath, ".zip") {
+			ext := filepath.Ext(inputPath)
+			switch ext {
+			case ".zip":
 				apkEditor.HtmlZip = file
-			} else {
+			case ".html":
 				apkEditor.IndexHtml = file
+			case ".so":
+				apkEditor.SoFile = file
+				apkEditor.SoFileName = filepath.Base(inputPath)
+			default:
+				log.Println("not support file type:" + ext)
+				return
 			}
 		}
 	}
