@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
@@ -51,11 +52,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Switch
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.rememberLazyListState
+
+private const val RUN_PREFS_NAME = "run_settings"
+private const val SELECTED_SO_KEY = "selected_so"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,6 +120,9 @@ fun RunScreen(modifier: Modifier = Modifier) {
     var handle by remember { mutableStateOf<BinaryRunner.StreamingHandle?>(null) }
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    val preferences = remember(ctx) {
+        ctx.getSharedPreferences(RUN_PREFS_NAME, Context.MODE_PRIVATE)
+    }
     // discover .so files from nativeLibraryDir
     val nativeLibDir = ctx.applicationInfo.nativeLibraryDir
     val exeFiles = remember(nativeLibDir) {
@@ -125,7 +133,14 @@ fun RunScreen(modifier: Modifier = Modifier) {
             ?: emptyList()
     }
     var expanded by remember { mutableStateOf(false) }
-    var selectedSo by remember { mutableStateOf(exeFiles.firstOrNull() ?: "") }
+    var selectedSo by remember(exeFiles) {
+        mutableStateOf(
+            preferences.getString(SELECTED_SO_KEY, null)
+                ?.takeIf { it in exeFiles }
+                ?: exeFiles.firstOrNull()
+                ?: ""
+        )
+    }
     var wrap by remember { mutableStateOf(false) }
     var filter by remember { mutableStateOf("") }
 
@@ -163,6 +178,7 @@ fun RunScreen(modifier: Modifier = Modifier) {
                 exeFiles.forEach { name ->
                     DropdownMenuItem(text = { Text(name) }, onClick = {
                         selectedSo = name
+                        preferences.edit().putString(SELECTED_SO_KEY, name).apply()
                         expanded = false
                     })
                 }
@@ -260,11 +276,73 @@ fun RunScreenPreview() {
 @Composable
 fun ConfigScreen(modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var configText by remember { mutableStateOf("") }
+    var working by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
         configText = ConfigManager.readConfig(ctx)
     }
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Button(
+                enabled = !working,
+                onClick = {
+                    working = true
+                    statusMessage = "正在同步到 GitHub..."
+                    ConfigManager.writeConfig(ctx, configText)
+                    coroutineScope.launch {
+                        val result = GithubConfigSync.syncCurrentConfig(ctx)
+                        statusMessage = result.fold(
+                            onSuccess = { it },
+                            onFailure = { "同步失败：${it.message ?: it::class.java.simpleName}" }
+                        )
+                        working = false
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                if (working) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .height(16.dp)
+                            .width(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+                Text(if (working) "处理中" else "同步到 GitHub")
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                enabled = !working,
+                onClick = {
+                    working = true
+                    statusMessage = "正在从 GitHub 下载..."
+                    coroutineScope.launch {
+                        val result = GithubConfigSync.downloadCurrentConfig(ctx)
+                        statusMessage = result.fold(
+                            onSuccess = {
+                                configText = it
+                                "下载成功，已更新本地 config.json"
+                            },
+                            onFailure = { "下载失败：${it.message ?: it::class.java.simpleName}" }
+                        )
+                        working = false
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("从 GitHub 下载")
+            }
+        }
+        if (statusMessage.isNotBlank()) {
+            Text(
+                text = statusMessage,
+                modifier = Modifier.padding(top = 8.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         OutlinedTextField(
             value = configText,
             onValueChange = {
